@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="IMG_SERVER_URL">http://192.168.1.32:9001</string>
+    <string name="FLOW_WEBVIEW_HOME">http://192.168.1.32:9000</string>
+    <string name="FLOW_JS_LIBRARY_URL">http://192.168.1.32:9000/staic/js/FlowLibrary.js</string>
+</resources>

@@ -1,0 +1,484 @@
+<html lang="en"><head>
+    <meta charset="utf-8">
+    <title>Throw</title>
+    
+    <script src="/static/js/jquery.min.js"></script>
+	<script type="text/javascript" src="/static/js/ThrowCore.js"></script>
+	
+	<script type="text/javascript" src="/static/js/qr/grid.js"></script>
+	<script type="text/javascript" src="/static/js/qr/version.js"></script>
+	<script type="text/javascript" src="/static/js/qr/detector.js"></script>
+	<script type="text/javascript" src="/static/js/qr/formatinf.js"></script>
+	<script type="text/javascript" src="/static/js/qr/errorlevel.js"></script>
+	<script type="text/javascript" src="/static/js/qr/bitmat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/datablock.js"></script>
+	<script type="text/javascript" src="/static/js/qr/bmparser.js"></script>
+	<script type="text/javascript" src="/static/js/qr/datamask.js"></script>
+	<script type="text/javascript" src="/static/js/qr/rsdecoder.js"></script>
+	<script type="text/javascript" src="/static/js/qr/gf256poly.js"></script>
+	<script type="text/javascript" src="/static/js/qr/gf256.js"></script>
+	<script type="text/javascript" src="/static/js/qr/decoder.js"></script>
+	<script type="text/javascript" src="/static/js/qr/qrcode.js"></script>
+	<script type="text/javascript" src="/static/js/qr/findpat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/alignpat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/databr.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap-tab.js"></script>
+	
+	<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-responsive.min.css" rel="stylesheet">
+	<link href="/static/css/throw.css" rel="stylesheet">
+    
+    <script type="text/javascript">
+    	var DownloadRun = false;
+    	var is_chrome;
+    	var throwConnector;
+    	var files = {};
+    	var gCanvas = null;
+		var video;
+		var webVideo = false;
+    	var displayState = false;
+    	
+    	//File Drop Handlers
+    	function dragEnter(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function dragExit(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function dragOver(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function drop(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		
+			var files = evt.dataTransfer.files;
+			var count = files.length;
+		
+			// Only call the handler if 1 or more files was dropped.
+			if (count > 0)
+				handleFiles(files);
+		}
+		
+		function handleFiles(input){
+			for ( i = 0; i < input.length; i ++){
+		 		file = input[i];
+		 		
+				throwConnector.sendFile(file)
+            }
+		}
+    	
+    	
+    	
+		function is_touch_device() {
+		  return !!('ontouchstart' in window) // works on most browsers 
+		      || !!('onmsgesturechange' in window); // works on ie10
+		};
+    	
+    	
+    	//Onload
+		$(function () {
+		
+			if(is_touch_device() == true){
+				$("#manFile").show();
+			}	
+		
+			$("#manFile").change(function(evt) {
+				console.log(evt);
+				
+				var files = evt.target.files;
+				var count = files.length;
+		
+				// Only call the handler if 1 or more files was dropped.
+				if (count > 0)
+					handleFiles(files);
+			});
+		
+			fr = new FileReader();
+			is_chrome = navigator.userAgent.toLowerCase().indexOf('chrome') > -1;
+
+			//WebSocket Connector
+			throwConnector = new ThrowCore("127.0.0.1:8080");
+			
+			window.onbeforeunload = function(e) {
+				throwConnector.disconnect();
+			};
+			
+			//On Connect Listener
+			throwConnector.addEventListener(throwConnector.TYPE_CONN_DETAILS, function(msg){
+				console.log("Connection Event Listener");
+				$("#marker").fadeOut(1000, function() {
+					$("#marker").attr('src', msg.get_body()["marker"]);
+					$("#marker").fadeIn(1000);
+				});
+			});
+			
+			throwConnector.connect( function(msg){
+				console.log("Throw Connected");
+			});
+			
+			//On Message Listener
+			throwConnector.addEventListener("onmessage", function(msg){
+				console.log("Throw Msg");
+				console.log(msg.data);
+			});
+			
+			//On File Upload Start Handler
+			throwConnector.addHandler("uploadstart", function(body){
+				console.log("Upload Started");
+				console.log(body);
+			
+				$("#file_holder").animate({
+    				height: '300px'
+				}, {
+    				duration: 1000,
+    				easing: 'linear'
+    			});
+    			
+				addFileRow("files", body.file_id+"_upload", body.filename+" - Upload", true);
+			});
+			
+			//On File Upload Progress
+			throwConnector.addHandler("uploadprogress", function(body, i, total, time_est){
+				console.log("Upload Progress");
+				
+				if(time_est == 0){
+					document.getElementById(body.file_id+"_upload_filename").innerHTML = body.filename+" - Upload - Done";
+				}else{
+					document.getElementById(body.file_id+"_upload_filename").innerHTML = body.filename+" - Upload - "+time_est+" Secs";
+				}
+				
+				document.getElementById(body.file_id+"_upload_progress").style.width = String((100/total)*(i+1))+"%";				
+			});
+			
+			//On File Upload Finish
+			throwConnector.addHandler("uploadfinish", function(file){
+				console.log("Upload Finish");	
+				console.log(file);
+				
+				files[file.file_id+"_upload"] = file;		
+				
+				document.getElementById(file.file_id+"_upload_button_icon").className = "icon-download";
+			});
+			
+			//On File Download Start
+			throwConnector.addHandler("downloadstart", function(file){
+				$("#file_holder").animate({
+    				height: '300px'
+				}, {
+    				duration: 1000,
+    				easing: 'linear'
+    			});
+				console.log("Download Start");
+				console.log(file)
+				
+				
+				addFileRow("files", file.file_id+"_download", file.filename+" - Download", false);
+			});
+			
+			//On Download Progress
+			throwConnector.addHandler("downloadprogress", function(body, i, total){
+				console.log("Download Progress");
+				
+				document.getElementById(body.file_id+"_download_filename").innerHTML = body.filename+" - Download - "+time_est+" Secs";
+				document.getElementById(body.file_id+"_download_progress").style.width = String((100/total)*(i+1))+"%";				
+			});
+			
+			//On Download Handler
+			throwConnector.addHandler("downloadfinish", function(file){
+				console.log("Download Finish");
+				
+				files[file.file_id+"_download"] = file;						
+				
+				document.getElementById(file.file_id+"_download_button_icon").className = "icon-download";
+				document.getElementById(file.file_id+"_download_filename").innerHTML = file.filename+" - Download - Done";
+				
+				setTimeout(function() {openFile(file.file_id+"_download");}, 2000);
+			});
+			
+			
+			//Create Drop Area for Files
+			var dropbox = document.getElementById("wrappermiddle")
+
+			// init event handlers
+			dropbox.addEventListener("dragenter", dragEnter, false);
+			dropbox.addEventListener("dragexit", dragExit, false);
+			dropbox.addEventListener("dragover", dragOver, false);
+			dropbox.addEventListener("drop", drop, false);
+						
+		});
+		
+		
+		function convertDataURIToBlob(dataURI, mimetype) {
+			var BASE64_MARKER = ';base64,';
+			var base64Index = dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+		 	var base64 = dataURI.substring(base64Index);
+		  	var raw = window.atob(base64);
+		  	var rawLength = raw.length;
+		  	var uInt8Array = new Uint8Array(rawLength);
+		
+		  	for (var i = 0; i < rawLength; ++i) {
+		    	uInt8Array[i] = raw.charCodeAt(i);
+		  	}
+		
+		  	var bb = new Blob([uInt8Array]);
+		
+		  	return bb;
+		}
+		
+		
+		function addFileRow(tableID, file_id, filename, upload) {
+ 
+            var table = document.getElementById(tableID);
+            var rowCount = table.rows.length;
+            var row = table.insertRow(rowCount);
+ 
+            var cell1 = row.insertCell(0);
+            cell1.style.width = "300px";
+            var element1 = document.createElement("h1");
+            element1.id = file_id+"_filename";
+            element1.appendChild(document.createTextNode(filename));
+           
+            var element2 = document.createElement("div");
+            element2.className = "progress";
+            
+            var element3 = document.createElement("div");
+            element3.className = "bar";
+            element3.style.width = "0%";
+            element3.id = file_id+"_progress";
+            element2.appendChild(element3);
+            
+            cell1.appendChild(element1);
+            cell1.appendChild(element2);
+ 
+            var cell2 = row.insertCell(1);
+            cell2.style.paddingTop = "43px";
+         
+            var element4 = document.createElement("button");
+            element4.className = "btn btn-mini";
+            element4.type = "button";
+            
+            var element5 = document.createElement("i");
+            element5.id = file_id+"_button_icon"
+            element5.file_id = file_id;
+            element5.onclick = function () { openFile(this.file_id); };
+            
+            if (upload == true){
+                element5.className = "icon-remove";
+            }else{
+            	element5.className = "icon-download";
+            }
+            element4.appendChild(element5);
+            
+            cell2.appendChild(element4);
+        }
+		
+		
+		function openFile(file_id){
+				
+			if (is_chrome == false){
+				//Intended to Navigate to a Base64 Encoded content but this crashes Safari when the files are to large
+				//My Bad... So we download the content and then re download it via HTTP as it's a quick hack. - If you ever notice this send me an email and I will change it
+				//window.open(files[file_id].get_base64());		
+				//window.open("/download/"+throwConnector.client["client_id"]+"-"+file_id);
+				
+				
+				/*Downloads come in two forms either the individual file or a zip. 
+				* /download/<usr_id>-<file_id> = File
+				* /download/<usr_id> = Zip
+				*/
+				
+				downloadURL("/download/"+throwConnector.client["client_id"]+"-"+file_id);
+			}else{	
+				//Only Works on Chrome...
+				window.webkitRequestFileSystem(window.TEMPORARY, 1024*1024, function(fs) {
+		        	fs.root.getFile(files[file_id].filename, {create: true}, function(fileEntry) {
+		            	fileEntry.createWriter(function(fileWriter) {
+		 	 					
+		                	var blob = convertDataURIToBlob(files[file_id].get_base64());
+		    
+		   	            	fileWriter.addEventListener("writeend", function() {
+		                    	
+		                    	w = 200;
+		                    	h = 200;
+		                    	var left = (screen.width/2)-(w/2);
+  								var top = (screen.height/2)-(h/2);
+  								return window.open(fileEntry.toURL(), files[file_id].filename, 'toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=yes, copyhistory=no, width='+w+', height='+h+', top='+top+', left='+left);
+		                    	
+		                	}, false);
+		    
+		                	fileWriter.write(blob);
+		            	}, function() {});
+		        	}, function() {});
+	    		}, function() {});
+	    	}
+		}
+	
+	function animateScroll(){
+	    $('.bar').animate({
+	    	width: '100%'
+		}, {
+	    	duration: 1000,
+	    	easing: 'linear',
+	    	complete:function(){ 
+	
+		    	setTimeout(function(){
+		    		$('#username_input').fadeOut();
+		    		$('#wrappermiddle').animate({height: ['300', 'swing']}, 1000);
+		    		DownloadRun = false;
+		    	}, 3000);
+		   }
+		});
+	}
+	
+	
+	function downloadURL(url){
+	    var hiddenIFrameID = 'hiddenDownloader';
+	    iframe = document.getElementById(hiddenIFrameID);
+	    
+	    if (iframe === null) {
+	        iframe = document.createElement('iframe');
+	        iframe.id = hiddenIFrameID;
+	        iframe.style.display = 'none';
+	        document.body.appendChild(iframe);
+	    }
+	    iframe.src = url;
+	}
+		
+		
+	function qrRead(a){
+		usr_id = a.split("-");
+		usr_id = usr_id[0].split("/");
+		usr_id = usr_id[usr_id.length-1]
+		
+		//alert("Get The client: "+usr_id);
+		
+		throwConnector.getClientFiles(usr_id);
+	}	
+
+
+	function initCanvas(ww,hh){
+		gCanvas = document.getElementById("qr-canvas");
+		var w = ww;
+		var h = hh;
+		gCanvas.style.width = w + "px";
+		gCanvas.style.height = h + "px";
+		gCanvas.width = w;
+		gCanvas.height = h;
+		gCtx = gCanvas.getContext("2d");
+		gCtx.clearRect(0, 0, w, h);
+		imageData = gCtx.getImageData( 0,0,320,240);
+	}
+
+	function passLine(stringPixels) { 
+		var coll = stringPixels.split("-");
+	
+		for(var i=0;i<320;i++) { 
+			var intVal = parseInt(coll[i]);
+			r = (intVal >> 16) & 0xff;
+			g = (intVal >> 8) & 0xff;
+			b = (intVal ) & 0xff;
+			imageData.data[c+0]=r;
+			imageData.data[c+1]=g;
+			imageData.data[c+2]=b;
+			imageData.data[c+3]=255;
+			c+=4;
+		} 
+
+		if(c>=320*240*4) { 
+			c=0;
+      		gCtx.putImageData(imageData, 0,0);
+		} 
+ 	} 
+
+	function captureToCanvas() {
+    	gCanvas = document.getElementById("qr-canvas").getContext('2d');
+	    gCanvas.drawImage(video, 0, 0);
+	   	qrcode.decode();
+	}
+        
+
+	function camToggle(){   
+    	if (webVideo == false){
+	    	window.URL = window.URL || window.webkitURL;
+			navigator.getUserMedia  = navigator.getUserMedia || navigator.webkitGetUserMedia ||
+		                          navigator.mozGetUserMedia || navigator.msGetUserMedia;
+		
+			video = document.querySelector('video');
+		
+			if (navigator.getUserMedia) {
+				webVideo = true;
+		  		navigator.getUserMedia({audio: true, video: true}, function(stream) {
+		    		video.src = window.URL.createObjectURL(stream);
+		    		initCanvas(640,480);
+		    		
+					qrcode.callback = qrRead;
+					setInterval(captureToCanvas, 500);
+		  		}, function(){
+		  			alert("No Camera Support");
+		  		});
+			}else{
+				alert("No Camera Support");
+				
+		 		//video.src = 'somevideo.webm'; // fallback.
+			}
+		}
+		
+		if (webVideo == true){
+			if(displayState == false){
+				displayState = true;
+				 $("#marker").fadeOut(1000, function(){
+					$("#camVideo").fadeIn(1000); 
+				 });
+			 }else{
+			 	displayState = false;
+			 	$("#camVideo").fadeOut(1000, function(){
+					$("#marker").fadeIn(1000); 
+				});
+			 }
+		 }
+
+     }
+     
+
+	</script>
+</head>
+<body>
+	<canvas id="qr-canvas" width="640" height="480" style="display:none"></canvas>
+
+	<div id="wrapper">
+		<div id="wrappertop"></div>
+
+		<div id="wrappermiddle">		
+			<div style="width:290; height:290; padding-left:30px">
+				<img id="marker" src="/static/img/spacer.png" style="width:290; height:290" onClick="camToggle()" />
+				<video autoplay style="width:290; height:290; display:none" id="camVideo" onClick="camToggle()"></video>		
+			</div>
+		</div>
+		
+		<div id="file_holder" style="background:url(/static/img/wrapper_middle.png) repeat-y; height:0px; overflow: scroll; padding-left:20px; padding-right:20px;">
+			<div style="margin-left:10px; width:290px; height:400px; background-color: rgba(255, 255, 255, 0.5)">
+				<table class="table" id="files" style="left:-20px">
+		        	<tbody>
+	
+		            </tbody>
+				</table>
+			</div>
+		</div>
+		
+		<div id="wrapperbottom"></div>
+				
+ 		<input type="file" id="manFile" name="upfile" style="display:none"><br>
+
+	<br>
+	</div>
+		
+	<iframe id="hiddenDownloader" height="1px" width="1px"/>
+</body>
+</html>

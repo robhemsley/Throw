@@ -1,0 +1,2265 @@
+<html lang="en"><head>
+    <meta charset="utf-8">
+    <title>Throw - OTA File Portal</title>
+    
+    <script src="/static/js/jquery.min.js"></script>
+	<script type="text/javascript" src="/static/js/ThrowCore.js"></script>
+	
+	<script src="/static/js/TweenMax.min.js"></script>
+	
+	<script type="text/javascript" src="/static/js/qr/grid.js"></script>
+	<script type="text/javascript" src="/static/js/qr/version.js"></script>
+	<script type="text/javascript" src="/static/js/qr/detector.js"></script>
+	<script type="text/javascript" src="/static/js/qr/formatinf.js"></script>
+	<script type="text/javascript" src="/static/js/qr/errorlevel.js"></script>
+	<script type="text/javascript" src="/static/js/qr/bitmat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/datablock.js"></script>
+	<script type="text/javascript" src="/static/js/qr/bmparser.js"></script>
+	<script type="text/javascript" src="/static/js/qr/datamask.js"></script>
+	<script type="text/javascript" src="/static/js/qr/rsdecoder.js"></script>
+	<script type="text/javascript" src="/static/js/qr/gf256poly.js"></script>
+	<script type="text/javascript" src="/static/js/qr/gf256.js"></script>
+	<script type="text/javascript" src="/static/js/qr/decoder.js"></script>
+	<script type="text/javascript" src="/static/js/qr/qrcode.js"></script>
+	<script type="text/javascript" src="/static/js/qr/findpat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/alignpat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/databr.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap-tab.js"></script>
+	
+	<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-responsive.min.css" rel="stylesheet">
+	<link href="/static/css/throw.css" rel="stylesheet">
+	
+	<style type="text/css">
+	
+.inner {
+  position: absolute;
+}
+	
+	</style>
+    
+    <script type="text/javascript">
+    	var DownloadRun = false;
+    	var is_chrome;
+    	var throwConnector;
+    	var files = {};
+    	var gCanvas = null;
+		var video;
+		var webVideo = false;
+    	var displayState = false;
+    	
+    	var uploadCount = 0;
+    	var uploadCountFinal = 0;
+    	var state = "home";
+    	
+    	//File Drop Handlers
+    	function dragEnter(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function dragExit(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function dragOver(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function drop(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		
+			var files = evt.dataTransfer.files;
+			var count = files.length;
+		
+			// Only call the handler if 1 or more files was dropped.
+			if (count > 0)
+				handleFiles(files);
+		}
+		
+		function handleFiles(input){
+			uploadCountFinal = input.length;
+			animateSend();
+		
+			for ( i = 0; i < input.length; i ++){
+		 		file = input[i];
+		 		
+				throwConnector.sendFile(file)
+            }
+		}
+    	
+    	
+    	
+		function is_touch_device() {
+		  return !!('ontouchstart' in window) // works on most browsers 
+		      || !!('onmsgesturechange' in window); // works on ie10
+		};
+    	
+    	
+    	function animateSend(){
+    		if(state == "home"){
+    			state = "send";
+	    		$(function () {
+				    $("#center_text").fadeOut();
+				    $("#receive").fadeOut(function(){
+				    	var photo = document.getElementById("send");
+						TweenLite.to(photo, 1.5, {"padding-left":250});
+						
+						if(uploadFiles == true){
+							$("#file_holder_send").animate({
+			    				height: '200px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+				    });
+				});
+			}else{
+				if(state == "receive"){
+				  	$(function () {
+		    			var photo = document.getElementById("receive");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":500, onComplete: function(){
+							$("#receive").css("padding-left", 0);
+							$("#center_text").fadeIn();
+							$("#send").fadeIn();
+							
+							state = "home"
+							setTimeout(animateSend, 1000);
+						}});
+					});
+				}
+			}
+    	}
+    	
+    	function animateReceive(){
+    		if(state == "home"){
+	    		$(function () {
+				    $("#center_text").fadeOut();
+				    $("#send").fadeOut(function(){
+						var photo = document.getElementById("receive");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":500}, {"padding-left":250});
+						if(is_chrome == true){
+							$("#enableCam").fadeIn();
+						}
+						if(downloadFiles == true){
+							$("#file_holder_receive").animate({
+			    				height: '200px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+						state = "receive";
+				    });
+				});
+			}else{
+				if(state == "send"){
+				  	$(function () {
+		    			var photo = document.getElementById("send");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":0, onComplete: function(){
+							$("#center_text").fadeIn();
+							$("#receive").fadeIn();
+							state = "home"
+							setTimeout(animateReceive, 1000);
+						}});
+					});
+				}
+			}
+    	}
+    	
+    	function animateHome(){
+    		if(state == "send"){
+    		    if(uploadFiles == true){
+							$("#file_holder_send").animate({
+			    				height: '0px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+	    		$(function () {
+	
+	    			var photo = document.getElementById("send");
+					TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":0, onComplete: function(){
+						$("#center_text").fadeIn();
+						$("#receive").fadeIn();
+					}});
+				});
+			}else{
+				if(state == "receive"){
+					if(downloadFiles == true){
+							$("#file_holder_receive").animate({
+			    				height: '0px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+						  			if(is_chrome == true){
+							$("#enableCam").fadeOut();
+						}
+		    		$(function () {
+
+		    			var photo = document.getElementById("receive");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":500, onComplete: function(){
+							$("#receive").css("padding-left", 0);
+							$("#center_text").fadeIn();
+							$("#send").fadeIn();
+						}});
+					});
+				}	
+			}
+			state = "home";
+    	}
+    	
+    	function clickChange(change){
+    		if(state == change){
+    			animateHome();
+    		}else{
+    			if(change == "send"){
+    				animateSend();
+    			}else{
+    				animateReceive();
+    			}
+    		}
+    	}
+    	
+    	var uploadFiles = false;
+    	var downloadFiles = false;
+
+    	//Onload
+		$(function () {
+		
+			
+			//animateSend();
+			//setTimeout(animateHome, 3000);
+			//setTimeout(animateReceive, 6000);
+		
+
+		
+			if(is_touch_device() == true){
+				$("#manFileHolder").show();
+			}	
+		
+			$("#manFile").change(function(evt) {
+				console.log(evt);
+				
+				var files = evt.target.files;
+				var count = files.length;
+		
+				// Only call the handler if 1 or more files was dropped.
+				if (count > 0)
+					handleFiles(files);
+			});
+		
+			fr = new FileReader();
+			is_chrome = navigator.userAgent.toLowerCase().indexOf('chrome') > -1;
+
+			//WebSocket Connector
+			throwConnector = new ThrowCore("127.0.0.1:8080");
+			
+			window.onbeforeunload = function(e) {
+				throwConnector.disconnect();
+			};
+			
+			//On Connect Listener
+			throwConnector.addEventListener(throwConnector.TYPE_CONN_DETAILS, function(msg){
+				console.log("Connection Event Listener");
+				$("#marker").fadeOut(1000, function() {
+					$("#marker_img").attr('src', msg.get_body()["marker"]);
+					$("#marker").fadeIn(1000);
+				});
+			});
+			
+			throwConnector.connect( function(msg){
+				console.log("Throw Connected");
+			});
+			
+			//On Message Listener
+			throwConnector.addEventListener("onmessage", function(msg){
+				console.log("Throw Msg");
+				console.log(msg.data);
+			});
+			
+			//On File Upload Start Handler
+			throwConnector.addHandler("uploadstart", function(body){
+				console.log("Upload Started");
+				console.log(body);
+			
+				$("#file_holder_send").animate({
+    				height: '200px'
+				}, {
+    				duration: 1000,
+    				easing: 'linear'
+    			});
+    			
+				addFileRow("files_send", body.file_id+"_upload", body.filename+" - Upload", true);
+				uploadFiles = true;
+			});
+			
+			var doneFiles = [];
+			//On File Upload Progress
+			throwConnector.addHandler("uploadprogress", function(file, body, i, total, time_est){
+				console.log("Upload Progress");
+				
+	
+					if (time_est == "Infinity"){
+						document.getElementById(body.file_id+"_upload_filename").innerHTML = file.filename+" - Upload";
+					}else{
+						document.getElementById(body.file_id+"_upload_filename").innerHTML = file.filename+" - Upload - "+time_est+" Secs";
+					}
+				
+				document.getElementById(body.file_id+"_upload_progress").style.width = String((100/total)*(i+1))+"%";
+				
+				if(String((100/total)*(i+1)) > 95){
+					document.getElementById(body.file_id+"_upload_filename").innerHTML = file.filename+" - Upload - Done";
+					if(doneFiles.indexOf(file.file_id) == -1){
+						doneFiles.push(file.file_id)
+					uploadCount += 1;
+					
+						if (uploadCount == uploadCountFinal){
+								$("#uploadIcon").fadeOut(function(){
+									$("#uploadIcon").css('background-image', 'url(/static/img/smile.png)');
+									$("#uploadIcon").fadeIn();
+									$("#doneTxt").fadeIn();
+								});
+			    				setTimeout(animateHome,8000);
+			    				setTimeout(function(){
+				    				$("#uploadIcon").fadeOut(function(){
+										$("#uploadIcon").css('background-image', 'url(/static/img/upload_cloud_small.png)');
+										$("#uploadIcon").fadeIn();
+										$("#doneTxt").fadeOut();
+									});
+			    				}, 8000);
+						}
+					}
+				}			
+
+			});
+			
+			//On File Upload Finish
+			throwConnector.addHandler("uploadfinish", function(file){
+				console.log("Upload Finish");	
+				console.log(file);
+				
+				files[file.file_id+"_upload"] = file;		
+				
+				document.getElementById(file.file_id+"_upload_button_icon").className = "icon-download";
+			});
+			
+			//On File Download Start
+			throwConnector.addHandler("downloadstart", function(file){
+				$("#file_holder_receive").animate({
+    				height: '200px'
+				}, {
+    				duration: 1000,
+    				easing: 'linear'
+    			});
+				console.log("Download Start");
+				console.log(file)
+				animateReceive();
+				
+				
+				addFileRow("files_receive", file.file_id+"_download", file.filename+" - Download", false);
+				downloadFiles = true;
+			});
+			
+			//On Download Progress
+			throwConnector.addHandler("downloadprogress", function(body, i, total, time_est){
+				console.log("Download Progress");
+				
+				document.getElementById(body.file_id+"_download_filename").innerHTML = body.filename+" - Download - "+time_est+" Secs";
+				document.getElementById(body.file_id+"_download_progress").style.width = String((100/total)*(i+1))+"%";				
+			});
+			
+			//On Download Handler
+			throwConnector.addHandler("downloadfinish", function(file){
+				console.log("Download Finish");
+				
+				files[file.file_id+"_download"] = file;						
+				
+				document.getElementById(file.file_id+"_download_button_icon").className = "icon-download";
+				document.getElementById(file.file_id+"_download_filename").innerHTML = file.filename+" - Download - Done";
+				
+				setTimeout(function() {openFile(file.file_id+"_download");}, 2000);
+			});
+			
+			
+			//Create Drop Area for Files
+			var dropbox = document.getElementById("send")
+
+			// init event handlers
+			dropbox.addEventListener("dragenter", dragEnter, false);
+			dropbox.addEventListener("dragexit", dragExit, false);
+			dropbox.addEventListener("dragover", dragOver, false);
+			dropbox.addEventListener("drop", drop, false);
+						
+		});
+		
+		
+		function convertDataURIToBlob(dataURI, mimetype) {
+			var BASE64_MARKER = ';base64,';
+			var base64Index = dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+		 	var base64 = dataURI.substring(base64Index);
+		  	var raw = window.atob(base64);
+		  	var rawLength = raw.length;
+		  	var uInt8Array = new Uint8Array(rawLength);
+		
+		  	for (var i = 0; i < rawLength; ++i) {
+		    	uInt8Array[i] = raw.charCodeAt(i);
+		  	}
+		
+		  	var bb = new Blob([uInt8Array]);
+		
+		  	return bb;
+		}
+		
+		
+		function addFileRow(tableID, file_id, filename, upload) {
+ 
+            var table = document.getElementById(tableID);
+            var rowCount = table.rows.length;
+            var row = table.insertRow(rowCount);
+ 
+            var cell1 = row.insertCell(0);
+            cell1.style.width = "300px";
+            var element1 = document.createElement("h1");
+            element1.id = file_id+"_filename";
+            element1.appendChild(document.createTextNode(filename));
+           
+            var element2 = document.createElement("div");
+            element2.className = "progress";
+            
+            var element3 = document.createElement("div");
+            element3.className = "bar";
+            element3.style.width = "0%";
+            element3.id = file_id+"_progress";
+            element2.appendChild(element3);
+            
+            cell1.appendChild(element1);
+            cell1.appendChild(element2);
+ 
+            var cell2 = row.insertCell(1);
+            cell2.style.paddingTop = "43px";
+         
+            var element4 = document.createElement("button");
+            element4.className = "btn btn-mini";
+            element4.type = "button";
+            
+            var element5 = document.createElement("i");
+            element5.id = file_id+"_button_icon"
+            element5.file_id = file_id;
+            element5.onclick = function () { openFile(this.file_id); };
+            
+            if (upload == true){
+                element5.className = "icon-remove";
+            }else{
+            	element5.className = "icon-download";
+            }
+            element4.appendChild(element5);
+            
+            cell2.appendChild(element4);
+        }
+		
+		
+		function openFile(file_id){
+				
+			if (is_chrome == false){
+				//Intended to Navigate to a Base64 Encoded content but this crashes Safari when the files are to large
+				//My Bad... So we download the content and then re download it via HTTP as it's a quick hack. - If you ever notice this send me an email and I will change it
+				//window.open(files[file_id].get_base64());		
+				//window.open("/download/"+throwConnector.client["client_id"]+"-"+file_id);
+				
+				
+				/*Downloads come in two forms either the individual file or a zip. 
+				* /download/<usr_id>-<file_id> = File
+				* /download/<usr_id> = Zip
+				*/
+				
+				downloadURL("/download/"+throwConnector.client["client_id"]+"-"+file_id);
+			}else{	
+				//Only Works on Chrome...
+				window.webkitRequestFileSystem(window.TEMPORARY, 1024*1024, function(fs) {
+		        	fs.root.getFile(files[file_id].filename, {create: true}, function(fileEntry) {
+		            	fileEntry.createWriter(function(fileWriter) {
+		 	 					
+		                	var blob = convertDataURIToBlob(files[file_id].get_base64());
+		    
+		   	            	fileWriter.addEventListener("writeend", function() {
+		                    	
+		                    	w = 200;
+		                    	h = 200;
+		                    	var left = (screen.width/2)-(w/2);
+  								var top = (screen.height/2)-(h/2);
+  								return window.open(fileEntry.toURL(), files[file_id].filename, 'toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=yes, copyhistory=no, width='+w+', height='+h+', top='+top+', left='+left);
+		                    	
+		                	}, false);
+		    
+		                	fileWriter.write(blob);
+		            	}, function() {});
+		        	}, function() {});
+	    		}, function() {});
+	    	}
+		}
+	
+	function animateScroll(){
+	    $('.bar').animate({
+	    	width: '100%'
+		}, {
+	    	duration: 1000,
+	    	easing: 'linear',
+	    	complete:function(){ 
+	
+		    	setTimeout(function(){
+		    		$('#username_input').fadeOut();
+		    		$('#wrappermiddle').animate({height: ['300', 'swing']}, 1000);
+		    		DownloadRun = false;
+		    	}, 3000);
+		   }
+		});
+	}
+	
+	
+	function downloadURL(url){
+	    var hiddenIFrameID = 'hiddenDownloader';
+	    iframe = document.getElementById(hiddenIFrameID);
+	    
+	    if (iframe === null) {
+	        iframe = document.createElement('iframe');
+	        iframe.id = hiddenIFrameID;
+	        iframe.style.display = 'none';
+	        document.body.appendChild(iframe);
+	    }
+	    iframe.src = url;
+	}
+		
+		
+	function qrRead(a){
+		usr_id = a.split("-");
+		usr_id = usr_id[0].split("/");
+		usr_id = usr_id[usr_id.length-1]
+				
+		throwConnector.getClientFiles(usr_id);
+	}	
+
+
+	function initCanvas(ww,hh){
+		gCanvas = document.getElementById("qr-canvas");
+		var w = ww;
+		var h = hh;
+		gCanvas.style.width = w + "px";
+		gCanvas.style.height = h + "px";
+		gCanvas.width = w;
+		gCanvas.height = h;
+		gCtx = gCanvas.getContext("2d");
+		gCtx.clearRect(0, 0, w, h);
+		imageData = gCtx.getImageData( 0,0,320,240);
+	}
+
+	function passLine(stringPixels) { 
+		var coll = stringPixels.split("-");
+	
+		for(var i=0;i<320;i++) { 
+			var intVal = parseInt(coll[i]);
+			r = (intVal >> 16) & 0xff;
+			g = (intVal >> 8) & 0xff;
+			b = (intVal ) & 0xff;
+			imageData.data[c+0]=r;
+			imageData.data[c+1]=g;
+			imageData.data[c+2]=b;
+			imageData.data[c+3]=255;
+			c+=4;
+		} 
+
+		if(c>=320*240*4) { 
+			c=0;
+      		gCtx.putImageData(imageData, 0,0);
+		} 
+ 	} 
+
+	function captureToCanvas() {
+    	gCanvas = document.getElementById("qr-canvas").getContext('2d');
+	    gCanvas.drawImage(video, 0, 0);
+	   	qrcode.decode();
+	}
+        
+
+	function camToggle(){   
+    	if (webVideo == false){
+	    	window.URL = window.URL || window.webkitURL;
+			navigator.getUserMedia  = navigator.getUserMedia || navigator.webkitGetUserMedia ||
+		                          navigator.mozGetUserMedia || navigator.msGetUserMedia;
+		
+			video = document.querySelector('video');
+		
+			if (navigator.getUserMedia) {
+				webVideo = true;
+		  		navigator.getUserMedia({audio: true, video: true}, function(stream) {
+		    		video.src = window.URL.createObjectURL(stream);
+		    		initCanvas(640,480);
+		    		
+					qrcode.callback = qrRead;
+					setInterval(captureToCanvas, 500);
+		  		}, function(){
+		  			alert("No Camera Support");
+		  		});
+			}else{
+				alert("No Camera Support");
+				
+		 		//video.src = 'somevideo.webm'; // fallback.
+			}
+		}
+		
+		if (webVideo == true){
+			if(displayState == false){
+				displayState = true;
+				 $("#marker").fadeOut(1000, function(){
+					$("#camVideo").fadeIn(1000); 
+				 });
+			 }else{
+			 	displayState = false;
+			 	$("#camVideo").fadeOut(1000, function(){
+					$("#marker").fadeIn(1000); 
+				});
+			 }
+		 }
+
+     }
+     
+
+	</script>
+</head>
+<body>
+  
+	<canvas id="qr-canvas" width="640" height="480" style="display:none"></canvas>
+	
+	<div id="header">
+		<div style="float:left">
+			<img src="/static/img/ideo_logo.png"/>
+		</div>
+		<div style="margin-left:70px; margin-top:12px">
+			<h2> OTA File Portal</h2>
+		</div>
+		<div style="overflow:hidden; width:950px; height:1px; background:black; margin-top:25px"></div>
+	</div>
+
+	<div id="wrapper">
+		<div id="send" style="float:left; width:350px">
+			<div style="text-align: center; font-size:20px"><h1>Send Files</h1></div>
+			<div id="wrappertop"></div>
+		
+				<div id="wrappermiddle" onClick="clickChange('send')">	
+					<div id="uploadIcon" style="margin-left:20px; width:307; height:286; border-width: 2px; border-style: dashed; border-color: #212121; background:url(/static/img/upload_cloud_small.png) no-repeat center center;">
+						<div id="doneTxt" style="display:none; text-align: center; font-size:20px; padding-top:180px"><h1>Done</h1></div>
+					</div> 
+						
+					<div style="width:290; height:290; padding-left:30px">
+						<div class="marker" id="markerasas"  style="display:none; opacity:100">
+							<div class="inner"><img id="marker_imgsaasa" src="/static/img/spacer.png" style="width:290; height:290" /></div>
+							<div class="inner"><img src="/static/img/qr_ideo.png" style="width:290; height:290;"></div>
+						</div>
+					</div>
+				</div>
+				
+				<div id="manFileHolder" style="background:url(/static/img/wrapper_middle.png) repeat-y;overflow: scroll; padding-left:20px; padding-right:20px; padding-top:20px; display:none">
+					<input type="file" id="manFile" name="upfile"><br>
+				</div>
+			
+				 		
+				
+				<div id="file_holder_send" style="background:url(/static/img/wrapper_middle.png) repeat-y; height:0px; overflow: scroll; padding-left:20px; padding-right:20px;">
+					<div style="margin-left:10px; width:290px; height:400px; background-color: rgba(255, 255, 255, 0.5)">
+						<table class="table" id="files_send" style="left:-20px">
+				        	<tbody>
+			
+				            </tbody>
+						</table>
+					</div>
+				</div>
+			
+			<div id="wrapperbottom"></div>
+			
+			<div style="text-align: justify; font-size:15px; padding-left:15px; padding-top:7px; padding-right:15px">
+				Drop your file in the above area to send it to another computer or device. 
+			</div>
+		</div>
+		
+		
+		<div id="center_text" style="font-size:20px; float: left; width:120px; margin-top:180px; margin-left:10px; margin-right:20px; display: table-cell; text-align: center; vertical-align: middle;">
+			<h1>- Or -<h1>
+		</div>
+		
+		
+		<div id="receive" style="overflow: hidden; width:350px">
+		
+		<div style="text-align: center; font-size:20px"><h1>Receive Files</h1></div>
+			<div id="wrappertop"></div>
+	
+			<div id="wrappermiddle" onClick="clickChange('receive')">		
+				<div style="width:290; height:290; padding-left:30px">
+					<div class="marker" id="marker"  style="display:none; opacity:100">
+						<div class="inner"><img id="marker_img" src="/static/img/spacer.png" style="width:290; height:290" /></div>
+						<div class="inner"><img src="/static/img/qr_ideo.png" style="width:290; height:290;"></div>
+					</div>
+					<video autoplay style="width:290; height:290; display:none" id="camVideo" onClick="camToggle()"></video>		
+				</div>
+				
+			</div>
+			
+			<div style="background:url(/static/img/wrapper_middle.png) repeat-y;overflow: scroll; padding-left:20px; padding-right:20px;">
+				<div id="enableCam" style="display:none; padding-left:100px; width:120px;"><button onclick="camToggle()">Turn on camera</button></div>
+			</div>			
+			
+			
+			<div id="file_holder_receive" style="background:url(/static/img/wrapper_middle.png) repeat-y; height:0px; overflow: scroll; padding-left:20px; padding-right:20px;">
+				<div style="margin-left:10px; width:290px; height:400px; background-color: rgba(255, 255, 255, 0.5)">
+					<table class="table" id="files_receive" style="left:-20px">
+			        	<tbody>
+		
+			            </tbody>
+					</table>
+				</div>
+			</div>
+			
+			
+			<div id="wrapperbottom"></div>
+			
+			<div>
+				<div style="text-align: justify; font-size:15px; padding-left:15px; padding-top:7px; padding-right:15px">
+					To receive a file from another device, launch the IDEO File Portal site on that device and aim its camera at the above QR code.
+				</div>
+			</div>
+					
+	
+			<br>
+			
+		
+		</div>
+		
+		
+	</div>
+	
+	
+
+		
+	<iframe id="hiddenDownloader" height="1px" width="1px"/>
+	
+	
+	
+
+  
+  
+  
+  
+</body>
+</html><html lang="en"><head>
+    <meta charset="utf-8">
+    <title>Throw - OTA File Portal</title>
+    
+    <script src="/static/js/jquery.min.js"></script>
+	<script type="text/javascript" src="/static/js/ThrowCore.js"></script>
+	
+	<script src="/static/js/TweenMax.min.js"></script>
+	
+	<script type="text/javascript" src="/static/js/qr/grid.js"></script>
+	<script type="text/javascript" src="/static/js/qr/version.js"></script>
+	<script type="text/javascript" src="/static/js/qr/detector.js"></script>
+	<script type="text/javascript" src="/static/js/qr/formatinf.js"></script>
+	<script type="text/javascript" src="/static/js/qr/errorlevel.js"></script>
+	<script type="text/javascript" src="/static/js/qr/bitmat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/datablock.js"></script>
+	<script type="text/javascript" src="/static/js/qr/bmparser.js"></script>
+	<script type="text/javascript" src="/static/js/qr/datamask.js"></script>
+	<script type="text/javascript" src="/static/js/qr/rsdecoder.js"></script>
+	<script type="text/javascript" src="/static/js/qr/gf256poly.js"></script>
+	<script type="text/javascript" src="/static/js/qr/gf256.js"></script>
+	<script type="text/javascript" src="/static/js/qr/decoder.js"></script>
+	<script type="text/javascript" src="/static/js/qr/qrcode.js"></script>
+	<script type="text/javascript" src="/static/js/qr/findpat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/alignpat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/databr.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap-tab.js"></script>
+	
+	<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-responsive.min.css" rel="stylesheet">
+	<link href="/static/css/throw.css" rel="stylesheet">
+	
+	<style type="text/css">
+	
+.inner {
+  position: absolute;
+}
+	
+	</style>
+    
+    <script type="text/javascript">
+    	var DownloadRun = false;
+    	var is_chrome;
+    	var throwConnector;
+    	var files = {};
+    	var gCanvas = null;
+		var video;
+		var webVideo = false;
+    	var displayState = false;
+    	
+    	var uploadCount = 0;
+    	var uploadCountFinal = 0;
+    	var state = "home";
+    	
+    	//File Drop Handlers
+    	function dragEnter(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function dragExit(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function dragOver(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function drop(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		
+			var files = evt.dataTransfer.files;
+			var count = files.length;
+		
+			// Only call the handler if 1 or more files was dropped.
+			if (count > 0)
+				handleFiles(files);
+		}
+		
+		function handleFiles(input){
+			uploadCountFinal = input.length;
+			animateSend();
+		
+			for ( i = 0; i < input.length; i ++){
+		 		file = input[i];
+		 		
+				throwConnector.sendFile(file)
+            }
+		}
+    	
+    	
+    	
+		function is_touch_device() {
+		  return !!('ontouchstart' in window) // works on most browsers 
+		      || !!('onmsgesturechange' in window); // works on ie10
+		};
+    	
+    	
+    	function animateSend(){
+    		if(state == "home"){
+    			state = "send";
+	    		$(function () {
+				    $("#center_text").fadeOut();
+				    $("#receive").fadeOut(function(){
+				    	var photo = document.getElementById("send");
+						TweenLite.to(photo, 1.5, {"padding-left":250});
+						
+						if(uploadFiles == true){
+							$("#file_holder_send").animate({
+			    				height: '200px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+				    });
+				});
+			}else{
+				if(state == "receive"){
+				  	$(function () {
+		    			var photo = document.getElementById("receive");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":500, onComplete: function(){
+							$("#receive").css("padding-left", 0);
+							$("#center_text").fadeIn();
+							$("#send").fadeIn();
+							
+							state = "home"
+							setTimeout(animateSend, 1000);
+						}});
+					});
+				}
+			}
+    	}
+    	
+    	function animateReceive(){
+    		if(state == "home"){
+	    		$(function () {
+				    $("#center_text").fadeOut();
+				    $("#send").fadeOut(function(){
+						var photo = document.getElementById("receive");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":500}, {"padding-left":250});
+						if(is_chrome == true){
+							$("#enableCam").fadeIn();
+						}
+						if(downloadFiles == true){
+							$("#file_holder_receive").animate({
+			    				height: '200px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+						state = "receive";
+				    });
+				});
+			}else{
+				if(state == "send"){
+				  	$(function () {
+		    			var photo = document.getElementById("send");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":0, onComplete: function(){
+							$("#center_text").fadeIn();
+							$("#receive").fadeIn();
+							state = "home"
+							setTimeout(animateReceive, 1000);
+						}});
+					});
+				}
+			}
+    	}
+    	
+    	function animateHome(){
+    		if(state == "send"){
+    		    if(uploadFiles == true){
+							$("#file_holder_send").animate({
+			    				height: '0px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+	    		$(function () {
+	
+	    			var photo = document.getElementById("send");
+					TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":0, onComplete: function(){
+						$("#center_text").fadeIn();
+						$("#receive").fadeIn();
+					}});
+				});
+			}else{
+				if(state == "receive"){
+					if(downloadFiles == true){
+							$("#file_holder_receive").animate({
+			    				height: '0px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+						  			if(is_chrome == true){
+							$("#enableCam").fadeOut();
+						}
+		    		$(function () {
+
+		    			var photo = document.getElementById("receive");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":500, onComplete: function(){
+							$("#receive").css("padding-left", 0);
+							$("#center_text").fadeIn();
+							$("#send").fadeIn();
+						}});
+					});
+				}	
+			}
+			state = "home";
+    	}
+    	
+    	function clickChange(change){
+    		if(state == change){
+    			animateHome();
+    		}else{
+    			if(change == "send"){
+    				animateSend();
+    			}else{
+    				animateReceive();
+    			}
+    		}
+    	}
+    	
+    	var uploadFiles = false;
+    	var downloadFiles = false;
+
+    	//Onload
+		$(function () {
+		
+			
+			//animateSend();
+			//setTimeout(animateHome, 3000);
+			//setTimeout(animateReceive, 6000);
+		
+
+		
+			if(is_touch_device() == true){
+				$("#manFileHolder").show();
+			}	
+		
+			$("#manFile").change(function(evt) {
+				console.log(evt);
+				
+				var files = evt.target.files;
+				var count = files.length;
+		
+				// Only call the handler if 1 or more files was dropped.
+				if (count > 0)
+					handleFiles(files);
+			});
+		
+			fr = new FileReader();
+			is_chrome = navigator.userAgent.toLowerCase().indexOf('chrome') > -1;
+
+			//WebSocket Connector
+			throwConnector = new ThrowCore("192.168.1.3:8080");
+			
+			window.onbeforeunload = function(e) {
+				throwConnector.disconnect();
+			};
+			
+			//On Connect Listener
+			throwConnector.addEventListener(throwConnector.TYPE_CONN_DETAILS, function(msg){
+				console.log("Connection Event Listener");
+				$("#marker").fadeOut(1000, function() {
+					$("#marker_img").attr('src', msg.get_body()["marker"]);
+					$("#marker").fadeIn(1000);
+				});
+			});
+			
+			throwConnector.connect( function(msg){
+				console.log("Throw Connected");
+			});
+			
+			//On Message Listener
+			throwConnector.addEventListener("onmessage", function(msg){
+				console.log("Throw Msg");
+				console.log(msg.data);
+			});
+			
+			//On File Upload Start Handler
+			throwConnector.addHandler("uploadstart", function(body){
+				console.log("Upload Started");
+				console.log(body);
+			
+				$("#file_holder_send").animate({
+    				height: '200px'
+				}, {
+    				duration: 1000,
+    				easing: 'linear'
+    			});
+    			
+				addFileRow("files_send", body.file_id+"_upload", body.filename+" - Upload", true);
+				uploadFiles = true;
+			});
+			
+			//On File Upload Progress
+			throwConnector.addHandler("uploadprogress", function(file, body, i, total, time_est){
+				console.log("Upload Progress");
+				
+				if(time_est == 0 | time_est == "Infinity"){
+					document.getElementById(body.file_id+"_upload_filename").innerHTML = file.filename+" - Upload - Done";
+				}else{
+					document.getElementById(body.file_id+"_upload_filename").innerHTML = file.filename+" - Upload - "+time_est+" Secs";
+				}
+				
+				document.getElementById(body.file_id+"_upload_progress").style.width = String((100/total)*(i+1))+"%";				
+			});
+			
+			//On File Upload Finish
+			throwConnector.addHandler("uploadfinish", function(file){
+				console.log("Upload Finish");	
+				console.log(file);
+				
+				files[file.file_id+"_upload"] = file;		
+				
+				document.getElementById(file.file_id+"_upload_button_icon").className = "icon-download";
+				uploadCount += 1;
+				
+				console.log(uploadCount);
+				console.log(uploadCountFinal);
+				
+				if (uploadCount == uploadCountFinal){
+						$("#uploadIcon").fadeOut(function(){
+							$("#uploadIcon").css('background-image', 'url(/static/img/smile.png)');
+							$("#uploadIcon").fadeIn();
+							$("#doneTxt").fadeIn();
+						});
+	    				setTimeout(animateHome,8000);
+	    				setTimeout(function(){
+		    				$("#uploadIcon").fadeOut(function(){
+								$("#uploadIcon").css('background-image', 'url(/static/img/upload_cloud_small.png)');
+								$("#uploadIcon").fadeIn();
+								$("#doneTxt").fadeOut();
+							});
+	    				}, 8000);
+				}
+			});
+			
+			//On File Download Start
+			throwConnector.addHandler("downloadstart", function(file){
+				$("#file_holder_receive").animate({
+    				height: '200px'
+				}, {
+    				duration: 1000,
+    				easing: 'linear'
+    			});
+				console.log("Download Start");
+				console.log(file)
+				animateReceive();
+				
+				
+				addFileRow("files_receive", file.file_id+"_download", file.filename+" - Download", false);
+				downloadFiles = true;
+			});
+			
+			//On Download Progress
+			throwConnector.addHandler("downloadprogress", function(body, i, total, time_est){
+				console.log("Download Progress");
+				
+				document.getElementById(body.file_id+"_download_filename").innerHTML = body.filename+" - Download - "+time_est+" Secs";
+				document.getElementById(body.file_id+"_download_progress").style.width = String((100/total)*(i+1))+"%";				
+			});
+			
+			//On Download Handler
+			throwConnector.addHandler("downloadfinish", function(file){
+				console.log("Download Finish");
+				
+				files[file.file_id+"_download"] = file;						
+				
+				document.getElementById(file.file_id+"_download_button_icon").className = "icon-download";
+				document.getElementById(file.file_id+"_download_filename").innerHTML = file.filename+" - Download - Done";
+				
+				setTimeout(function() {openFile(file.file_id+"_download");}, 2000);
+			});
+			
+			
+			//Create Drop Area for Files
+			var dropbox = document.getElementById("send")
+
+			// init event handlers
+			dropbox.addEventListener("dragenter", dragEnter, false);
+			dropbox.addEventListener("dragexit", dragExit, false);
+			dropbox.addEventListener("dragover", dragOver, false);
+			dropbox.addEventListener("drop", drop, false);
+						
+		});
+		
+		
+		function convertDataURIToBlob(dataURI, mimetype) {
+			var BASE64_MARKER = ';base64,';
+			var base64Index = dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+		 	var base64 = dataURI.substring(base64Index);
+		  	var raw = window.atob(base64);
+		  	var rawLength = raw.length;
+		  	var uInt8Array = new Uint8Array(rawLength);
+		
+		  	for (var i = 0; i < rawLength; ++i) {
+		    	uInt8Array[i] = raw.charCodeAt(i);
+		  	}
+		
+		  	var bb = new Blob([uInt8Array]);
+		
+		  	return bb;
+		}
+		
+		
+		function addFileRow(tableID, file_id, filename, upload) {
+ 
+            var table = document.getElementById(tableID);
+            var rowCount = table.rows.length;
+            var row = table.insertRow(rowCount);
+ 
+            var cell1 = row.insertCell(0);
+            cell1.style.width = "300px";
+            var element1 = document.createElement("h1");
+            element1.id = file_id+"_filename";
+            element1.appendChild(document.createTextNode(filename));
+           
+            var element2 = document.createElement("div");
+            element2.className = "progress";
+            
+            var element3 = document.createElement("div");
+            element3.className = "bar";
+            element3.style.width = "0%";
+            element3.id = file_id+"_progress";
+            element2.appendChild(element3);
+            
+            cell1.appendChild(element1);
+            cell1.appendChild(element2);
+ 
+            var cell2 = row.insertCell(1);
+            cell2.style.paddingTop = "43px";
+         
+            var element4 = document.createElement("button");
+            element4.className = "btn btn-mini";
+            element4.type = "button";
+            
+            var element5 = document.createElement("i");
+            element5.id = file_id+"_button_icon"
+            element5.file_id = file_id;
+            element5.onclick = function () { openFile(this.file_id); };
+            
+            if (upload == true){
+                element5.className = "icon-remove";
+            }else{
+            	element5.className = "icon-download";
+            }
+            element4.appendChild(element5);
+            
+            cell2.appendChild(element4);
+        }
+		
+		
+		function openFile(file_id){
+				
+			if (is_chrome == false){
+				//Intended to Navigate to a Base64 Encoded content but this crashes Safari when the files are to large
+				//My Bad... So we download the content and then re download it via HTTP as it's a quick hack. - If you ever notice this send me an email and I will change it
+				//window.open(files[file_id].get_base64());		
+				//window.open("/download/"+throwConnector.client["client_id"]+"-"+file_id);
+				
+				
+				/*Downloads come in two forms either the individual file or a zip. 
+				* /download/<usr_id>-<file_id> = File
+				* /download/<usr_id> = Zip
+				*/
+				
+				downloadURL("/download/"+throwConnector.client["client_id"]+"-"+file_id);
+			}else{	
+				//Only Works on Chrome...
+				window.webkitRequestFileSystem(window.TEMPORARY, 1024*1024, function(fs) {
+		        	fs.root.getFile(files[file_id].filename, {create: true}, function(fileEntry) {
+		            	fileEntry.createWriter(function(fileWriter) {
+		 	 					
+		                	var blob = convertDataURIToBlob(files[file_id].get_base64());
+		    
+		   	            	fileWriter.addEventListener("writeend", function() {
+		                    	
+		                    	w = 200;
+		                    	h = 200;
+		                    	var left = (screen.width/2)-(w/2);
+  								var top = (screen.height/2)-(h/2);
+  								return window.open(fileEntry.toURL(), files[file_id].filename, 'toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=yes, copyhistory=no, width='+w+', height='+h+', top='+top+', left='+left);
+		                    	
+		                	}, false);
+		    
+		                	fileWriter.write(blob);
+		            	}, function() {});
+		        	}, function() {});
+	    		}, function() {});
+	    	}
+		}
+	
+	function animateScroll(){
+	    $('.bar').animate({
+	    	width: '100%'
+		}, {
+	    	duration: 1000,
+	    	easing: 'linear',
+	    	complete:function(){ 
+	
+		    	setTimeout(function(){
+		    		$('#username_input').fadeOut();
+		    		$('#wrappermiddle').animate({height: ['300', 'swing']}, 1000);
+		    		DownloadRun = false;
+		    	}, 3000);
+		   }
+		});
+	}
+	
+	
+	function downloadURL(url){
+	    var hiddenIFrameID = 'hiddenDownloader';
+	    iframe = document.getElementById(hiddenIFrameID);
+	    
+	    if (iframe === null) {
+	        iframe = document.createElement('iframe');
+	        iframe.id = hiddenIFrameID;
+	        iframe.style.display = 'none';
+	        document.body.appendChild(iframe);
+	    }
+	    iframe.src = url;
+	}
+		
+		
+	function qrRead(a){
+		usr_id = a.split("-");
+		usr_id = usr_id[0].split("/");
+		usr_id = usr_id[usr_id.length-1]
+		
+		//alert("Get The client: "+usr_id);
+		
+		throwConnector.getClientFiles(usr_id);
+	}	
+
+
+	function initCanvas(ww,hh){
+		gCanvas = document.getElementById("qr-canvas");
+		var w = ww;
+		var h = hh;
+		gCanvas.style.width = w + "px";
+		gCanvas.style.height = h + "px";
+		gCanvas.width = w;
+		gCanvas.height = h;
+		gCtx = gCanvas.getContext("2d");
+		gCtx.clearRect(0, 0, w, h);
+		imageData = gCtx.getImageData( 0,0,320,240);
+	}
+
+	function passLine(stringPixels) { 
+		var coll = stringPixels.split("-");
+	
+		for(var i=0;i<320;i++) { 
+			var intVal = parseInt(coll[i]);
+			r = (intVal >> 16) & 0xff;
+			g = (intVal >> 8) & 0xff;
+			b = (intVal ) & 0xff;
+			imageData.data[c+0]=r;
+			imageData.data[c+1]=g;
+			imageData.data[c+2]=b;
+			imageData.data[c+3]=255;
+			c+=4;
+		} 
+
+		if(c>=320*240*4) { 
+			c=0;
+      		gCtx.putImageData(imageData, 0,0);
+		} 
+ 	} 
+
+	function captureToCanvas() {
+    	gCanvas = document.getElementById("qr-canvas").getContext('2d');
+	    gCanvas.drawImage(video, 0, 0);
+	   	qrcode.decode();
+	}
+        
+
+	function camToggle(){   
+    	if (webVideo == false){
+	    	window.URL = window.URL || window.webkitURL;
+			navigator.getUserMedia  = navigator.getUserMedia || navigator.webkitGetUserMedia ||
+		                          navigator.mozGetUserMedia || navigator.msGetUserMedia;
+		
+			video = document.querySelector('video');
+		
+			if (navigator.getUserMedia) {
+				webVideo = true;
+		  		navigator.getUserMedia({audio: true, video: true}, function(stream) {
+		    		video.src = window.URL.createObjectURL(stream);
+		    		initCanvas(640,480);
+		    		
+					qrcode.callback = qrRead;
+					setInterval(captureToCanvas, 500);
+		  		}, function(){
+		  			alert("No Camera Support");
+		  		});
+			}else{
+				alert("No Camera Support");
+				
+		 		//video.src = 'somevideo.webm'; // fallback.
+			}
+		}
+		
+		if (webVideo == true){
+			if(displayState == false){
+				displayState = true;
+				 $("#marker").fadeOut(1000, function(){
+					$("#camVideo").fadeIn(1000); 
+				 });
+			 }else{
+			 	displayState = false;
+			 	$("#camVideo").fadeOut(1000, function(){
+					$("#marker").fadeIn(1000); 
+				});
+			 }
+		 }
+
+     }
+     
+
+	</script>
+</head>
+<body>
+  
+	<canvas id="qr-canvas" width="640" height="480" style="display:none"></canvas>
+	
+	<div id="header">
+		<div style="float:left">
+			<img src="/static/img/ideo_logo.png"/>
+		</div>
+		<div style="margin-left:70px; margin-top:12px">
+			<h2> OTA File Portal</h2>
+		</div>
+		<div style="overflow:hidden; width:950px; height:1px; background:black; margin-top:25px"></div>
+	</div>
+
+	<div id="wrapper">
+		<div id="send" style="float:left; width:350px">
+			<div style="text-align: center; font-size:20px"><h1>Send Files</h1></div>
+			<div id="wrappertop"></div>
+		
+				<div id="wrappermiddle" onClick="clickChange('send')">	
+					<div id="uploadIcon" style="margin-left:20px; width:307; height:286; border-width: 2px; border-style: dashed; border-color: #212121; background:url(/static/img/upload_cloud_small.png) no-repeat center center;">
+						<div id="doneTxt" style="display:none; text-align: center; font-size:20px; padding-top:180px"><h1>Done</h1></div>
+					</div> 
+						
+					<div style="width:290; height:290; padding-left:30px">
+						<div class="marker" id="markerasas"  style="display:none; opacity:100">
+							<div class="inner"><img id="marker_imgsaasa" src="/static/img/spacer.png" style="width:290; height:290" /></div>
+							<div class="inner"><img src="/static/img/qr_ideo.png" style="width:290; height:290;"></div>
+						</div>
+					</div>
+				</div>
+				
+				<div id="manFileHolder" style="background:url(/static/img/wrapper_middle.png) repeat-y;overflow: scroll; padding-left:20px; padding-right:20px; padding-top:20px; display:none">
+					<input type="file" id="manFile" name="upfile"><br>
+				</div>
+			
+				 		
+				
+				<div id="file_holder_send" style="background:url(/static/img/wrapper_middle.png) repeat-y; height:0px; overflow: scroll; padding-left:20px; padding-right:20px;">
+					<div style="margin-left:10px; width:290px; height:400px; background-color: rgba(255, 255, 255, 0.5)">
+						<table class="table" id="files_send" style="left:-20px">
+				        	<tbody>
+			
+				            </tbody>
+						</table>
+					</div>
+				</div>
+			
+			<div id="wrapperbottom"></div>
+			
+			<div style="text-align: justify; font-size:15px; padding-left:15px; padding-top:7px; padding-right:15px">
+				Drop your file in the above area to send it to another computer or device. 
+			</div>
+		</div>
+		
+		
+		<div id="center_text" style="font-size:20px; float: left; width:120px; margin-top:180px; margin-left:10px; margin-right:20px; display: table-cell; text-align: center; vertical-align: middle;">
+			<h1>- Or -<h1>
+		</div>
+		
+		
+		<div id="receive" style="overflow: hidden; width:350px">
+		
+		<div style="text-align: center; font-size:20px"><h1>Receive Files</h1></div>
+			<div id="wrappertop"></div>
+	
+			<div id="wrappermiddle" onClick="clickChange('receive')">		
+				<div style="width:290; height:290; padding-left:30px">
+					<div class="marker" id="marker"  style="display:none; opacity:100">
+						<div class="inner"><img id="marker_img" src="/static/img/spacer.png" style="width:290; height:290" /></div>
+						<div class="inner"><img src="/static/img/qr_ideo.png" style="width:290; height:290;"></div>
+					</div>
+					<video autoplay style="width:290; height:290; display:none" id="camVideo" onClick="camToggle()"></video>		
+				</div>
+				
+			</div>
+			
+			<div style="background:url(/static/img/wrapper_middle.png) repeat-y;overflow: scroll; padding-left:20px; padding-right:20px;">
+				<div id="enableCam" style="display:none; padding-left:100px; width:120px;"><button onclick="camToggle()">Turn on camera</button></div>
+			</div>			
+			
+			
+			<div id="file_holder_receive" style="background:url(/static/img/wrapper_middle.png) repeat-y; height:0px; overflow: scroll; padding-left:20px; padding-right:20px;">
+				<div style="margin-left:10px; width:290px; height:400px; background-color: rgba(255, 255, 255, 0.5)">
+					<table class="table" id="files_receive" style="left:-20px">
+			        	<tbody>
+		
+			            </tbody>
+					</table>
+				</div>
+			</div>
+			
+			
+			<div id="wrapperbottom"></div>
+			
+			<div>
+				<div style="text-align: justify; font-size:15px; padding-left:15px; padding-top:7px; padding-right:15px">
+					To receive a file from another device, launch the IDEO File Portal site on that device and aim its camera at the above QR code.
+				</div>
+			</div>
+					
+	
+			<br>
+			
+		
+		</div>
+		
+		
+	</div>
+	
+	
+
+		
+	<iframe id="hiddenDownloader" height="1px" width="1px"/>
+	
+	
+	
+
+  
+  
+  
+  
+</body>
+</html><html lang="en"><head>
+    <meta charset="utf-8">
+    <title>Throw - OTA File Portal</title>
+    
+    <script src="/static/js/jquery.min.js"></script>
+	<script type="text/javascript" src="/static/js/ThrowCore.js"></script>
+	
+	<script src="/static/js/TweenMax.min.js"></script>
+	
+	<script type="text/javascript" src="/static/js/qr/grid.js"></script>
+	<script type="text/javascript" src="/static/js/qr/version.js"></script>
+	<script type="text/javascript" src="/static/js/qr/detector.js"></script>
+	<script type="text/javascript" src="/static/js/qr/formatinf.js"></script>
+	<script type="text/javascript" src="/static/js/qr/errorlevel.js"></script>
+	<script type="text/javascript" src="/static/js/qr/bitmat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/datablock.js"></script>
+	<script type="text/javascript" src="/static/js/qr/bmparser.js"></script>
+	<script type="text/javascript" src="/static/js/qr/datamask.js"></script>
+	<script type="text/javascript" src="/static/js/qr/rsdecoder.js"></script>
+	<script type="text/javascript" src="/static/js/qr/gf256poly.js"></script>
+	<script type="text/javascript" src="/static/js/qr/gf256.js"></script>
+	<script type="text/javascript" src="/static/js/qr/decoder.js"></script>
+	<script type="text/javascript" src="/static/js/qr/qrcode.js"></script>
+	<script type="text/javascript" src="/static/js/qr/findpat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/alignpat.js"></script>
+	<script type="text/javascript" src="/static/js/qr/databr.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap-tab.js"></script>
+	
+	<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-responsive.min.css" rel="stylesheet">
+	<link href="/static/css/throw.css" rel="stylesheet">
+	
+	<style type="text/css">
+	
+.inner {
+  position: absolute;
+}
+	
+	</style>
+    
+    <script type="text/javascript">
+    	var DownloadRun = false;
+    	var is_chrome;
+    	var throwConnector;
+    	var files = {};
+    	var gCanvas = null;
+		var video;
+		var webVideo = false;
+    	var displayState = false;
+    	
+    	var uploadCount = 0;
+    	var uploadCountFinal = 0;
+    	var state = "home";
+    	
+    	//File Drop Handlers
+    	function dragEnter(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function dragExit(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function dragOver(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		}
+		
+		function drop(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+		
+			var files = evt.dataTransfer.files;
+			var count = files.length;
+		
+			// Only call the handler if 1 or more files was dropped.
+			if (count > 0)
+				handleFiles(files);
+		}
+		
+		function handleFiles(input){
+			uploadCountFinal = input.length;
+			animateSend();
+		
+			for ( i = 0; i < input.length; i ++){
+		 		file = input[i];
+		 		
+				throwConnector.sendFile(file)
+            }
+		}
+    	
+    	
+    	
+		function is_touch_device() {
+		  return !!('ontouchstart' in window) // works on most browsers 
+		      || !!('onmsgesturechange' in window); // works on ie10
+		};
+    	
+    	
+    	function animateSend(){
+    		if(state == "home"){
+    			state = "send";
+	    		$(function () {
+				    $("#center_text").fadeOut();
+				    $("#receive").fadeOut(function(){
+				    	var photo = document.getElementById("send");
+						TweenLite.to(photo, 1.5, {"padding-left":250});
+						
+						if(uploadFiles == true){
+							$("#file_holder_send").animate({
+			    				height: '200px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+				    });
+				});
+			}else{
+				if(state == "receive"){
+				  	$(function () {
+		    			var photo = document.getElementById("receive");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":500, onComplete: function(){
+							$("#receive").css("padding-left", 0);
+							$("#center_text").fadeIn();
+							$("#send").fadeIn();
+							
+							state = "home"
+							setTimeout(animateSend, 1000);
+						}});
+					});
+				}
+			}
+    	}
+    	
+    	function animateReceive(){
+    		if(state == "home"){
+	    		$(function () {
+				    $("#center_text").fadeOut();
+				    $("#send").fadeOut(function(){
+						var photo = document.getElementById("receive");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":500}, {"padding-left":250});
+						if(is_chrome == true){
+							$("#enableCam").fadeIn();
+						}
+						if(downloadFiles == true){
+							$("#file_holder_receive").animate({
+			    				height: '200px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+						state = "receive";
+				    });
+				});
+			}else{
+				if(state == "send"){
+				  	$(function () {
+		    			var photo = document.getElementById("send");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":0, onComplete: function(){
+							$("#center_text").fadeIn();
+							$("#receive").fadeIn();
+							state = "home"
+							setTimeout(animateReceive, 1000);
+						}});
+					});
+				}
+			}
+    	}
+    	
+    	function animateHome(){
+    		if(state == "send"){
+    		    if(uploadFiles == true){
+							$("#file_holder_send").animate({
+			    				height: '0px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+	    		$(function () {
+	
+	    			var photo = document.getElementById("send");
+					TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":0, onComplete: function(){
+						$("#center_text").fadeIn();
+						$("#receive").fadeIn();
+					}});
+				});
+			}else{
+				if(state == "receive"){
+					if(downloadFiles == true){
+							$("#file_holder_receive").animate({
+			    				height: '0px'
+							}, {
+			    				duration: 1000,
+			    				easing: 'linear'
+			    			});
+						}
+						  			if(is_chrome == true){
+							$("#enableCam").fadeOut();
+						}
+		    		$(function () {
+
+		    			var photo = document.getElementById("receive");
+						TweenLite.fromTo(photo, 1.5, {"padding-left":250}, {"padding-left":500, onComplete: function(){
+							$("#receive").css("padding-left", 0);
+							$("#center_text").fadeIn();
+							$("#send").fadeIn();
+						}});
+					});
+				}	
+			}
+			state = "home";
+    	}
+    	
+    	function clickChange(change){
+    		if(state == change){
+    			animateHome();
+    		}else{
+    			if(change == "send"){
+    				animateSend();
+    			}else{
+    				animateReceive();
+    			}
+    		}
+    	}
+    	
+    	var uploadFiles = false;
+    	var downloadFiles = false;
+
+    	//Onload
+		$(function () {
+		
+			
+			//animateSend();
+			//setTimeout(animateHome, 3000);
+			//setTimeout(animateReceive, 6000);
+		
+
+		
+			if(is_touch_device() == true){
+				$("#manFileHolder").show();
+			}	
+		
+			$("#manFile").change(function(evt) {
+				console.log(evt);
+				
+				var files = evt.target.files;
+				var count = files.length;
+		
+				// Only call the handler if 1 or more files was dropped.
+				if (count > 0)
+					handleFiles(files);
+			});
+		
+			fr = new FileReader();
+			is_chrome = navigator.userAgent.toLowerCase().indexOf('chrome') > -1;
+
+			//WebSocket Connector
+			throwConnector = new ThrowCore("192.168.1.5:8080");
+			
+			window.onbeforeunload = function(e) {
+				throwConnector.disconnect();
+			};
+			
+			//On Connect Listener
+			throwConnector.addEventListener(throwConnector.TYPE_CONN_DETAILS, function(msg){
+				console.log("Connection Event Listener");
+				$("#marker").fadeOut(1000, function() {
+					$("#marker_img").attr('src', msg.get_body()["marker"]);
+					$("#marker").fadeIn(1000);
+				});
+			});
+			
+			throwConnector.connect( function(msg){
+				console.log("Throw Connected");
+			});
+			
+			//On Message Listener
+			throwConnector.addEventListener("onmessage", function(msg){
+				console.log("Throw Msg");
+				console.log(msg.data);
+			});
+			
+			//On File Upload Start Handler
+			throwConnector.addHandler("uploadstart", function(body){
+				console.log("Upload Started");
+				console.log(body);
+			
+				$("#file_holder_send").animate({
+    				height: '200px'
+				}, {
+    				duration: 1000,
+    				easing: 'linear'
+    			});
+    			
+				addFileRow("files_send", body.file_id+"_upload", body.filename+" - Upload", true);
+				uploadFiles = true;
+			});
+			
+			//On File Upload Progress
+			throwConnector.addHandler("uploadprogress", function(file, body, i, total, time_est){
+				console.log("Upload Progress");
+				
+				if(time_est == 0 | time_est == "Infinity"){
+					document.getElementById(body.file_id+"_upload_filename").innerHTML = file.filename+" - Upload - Done";
+				}else{
+					document.getElementById(body.file_id+"_upload_filename").innerHTML = file.filename+" - Upload - "+time_est+" Secs";
+				}
+				
+				document.getElementById(body.file_id+"_upload_progress").style.width = String((100/total)*(i+1))+"%";				
+			});
+			
+			//On File Upload Finish
+			throwConnector.addHandler("uploadfinish", function(file){
+				console.log("Upload Finish");	
+				console.log(file);
+				
+				files[file.file_id+"_upload"] = file;		
+				
+				document.getElementById(file.file_id+"_upload_button_icon").className = "icon-download";
+				uploadCount += 1;
+				
+				console.log(uploadCount);
+				console.log(uploadCountFinal);
+				
+				if (uploadCount == uploadCountFinal){
+						$("#uploadIcon").fadeOut(function(){
+							$("#uploadIcon").css('background-image', 'url(/static/img/smile.png)');
+							$("#uploadIcon").fadeIn();
+							$("#doneTxt").fadeIn();
+						});
+	    				setTimeout(animateHome,8000);
+	    				setTimeout(function(){
+		    				$("#uploadIcon").fadeOut(function(){
+								$("#uploadIcon").css('background-image', 'url(/static/img/upload_cloud_small.png)');
+								$("#uploadIcon").fadeIn();
+								$("#doneTxt").fadeOut();
+							});
+	    				}, 8000);
+				}
+			});
+			
+			//On File Download Start
+			throwConnector.addHandler("downloadstart", function(file){
+				$("#file_holder_receive").animate({
+    				height: '200px'
+				}, {
+    				duration: 1000,
+    				easing: 'linear'
+    			});
+				console.log("Download Start");
+				console.log(file)
+				animateReceive();
+				
+				
+				addFileRow("files_receive", file.file_id+"_download", file.filename+" - Download", false);
+				downloadFiles = true;
+			});
+			
+			//On Download Progress
+			throwConnector.addHandler("downloadprogress", function(body, i, total, time_est){
+				console.log("Download Progress");
+				
+				document.getElementById(body.file_id+"_download_filename").innerHTML = body.filename+" - Download - "+time_est+" Secs";
+				document.getElementById(body.file_id+"_download_progress").style.width = String((100/total)*(i+1))+"%";				
+			});
+			
+			//On Download Handler
+			throwConnector.addHandler("downloadfinish", function(file){
+				console.log("Download Finish");
+				
+				files[file.file_id+"_download"] = file;						
+				
+				document.getElementById(file.file_id+"_download_button_icon").className = "icon-download";
+				document.getElementById(file.file_id+"_download_filename").innerHTML = file.filename+" - Download - Done";
+				
+				setTimeout(function() {openFile(file.file_id+"_download");}, 2000);
+			});
+			
+			
+			//Create Drop Area for Files
+			var dropbox = document.getElementById("send")
+
+			// init event handlers
+			dropbox.addEventListener("dragenter", dragEnter, false);
+			dropbox.addEventListener("dragexit", dragExit, false);
+			dropbox.addEventListener("dragover", dragOver, false);
+			dropbox.addEventListener("drop", drop, false);
+						
+		});
+		
+		
+		function convertDataURIToBlob(dataURI, mimetype) {
+			var BASE64_MARKER = ';base64,';
+			var base64Index = dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+		 	var base64 = dataURI.substring(base64Index);
+		  	var raw = window.atob(base64);
+		  	var rawLength = raw.length;
+		  	var uInt8Array = new Uint8Array(rawLength);
+		
+		  	for (var i = 0; i < rawLength; ++i) {
+		    	uInt8Array[i] = raw.charCodeAt(i);
+		  	}
+		
+		  	var bb = new Blob([uInt8Array]);
+		
+		  	return bb;
+		}
+		
+		
+		function addFileRow(tableID, file_id, filename, upload) {
+ 
+            var table = document.getElementById(tableID);
+            var rowCount = table.rows.length;
+            var row = table.insertRow(rowCount);
+ 
+            var cell1 = row.insertCell(0);
+            cell1.style.width = "300px";
+            var element1 = document.createElement("h1");
+            element1.id = file_id+"_filename";
+            element1.appendChild(document.createTextNode(filename));
+           
+            var element2 = document.createElement("div");
+            element2.className = "progress";
+            
+            var element3 = document.createElement("div");
+            element3.className = "bar";
+            element3.style.width = "0%";
+            element3.id = file_id+"_progress";
+            element2.appendChild(element3);
+            
+            cell1.appendChild(element1);
+            cell1.appendChild(element2);
+ 
+            var cell2 = row.insertCell(1);
+            cell2.style.paddingTop = "43px";
+         
+            var element4 = document.createElement("button");
+            element4.className = "btn btn-mini";
+            element4.type = "button";
+            
+            var element5 = document.createElement("i");
+            element5.id = file_id+"_button_icon"
+            element5.file_id = file_id;
+            element5.onclick = function () { openFile(this.file_id); };
+            
+            if (upload == true){
+                element5.className = "icon-remove";
+            }else{
+            	element5.className = "icon-download";
+            }
+            element4.appendChild(element5);
+            
+            cell2.appendChild(element4);
+        }
+		
+		
+		function openFile(file_id){
+				
+			if (is_chrome == false){
+				//Intended to Navigate to a Base64 Encoded content but this crashes Safari when the files are to large
+				//My Bad... So we download the content and then re download it via HTTP as it's a quick hack. - If you ever notice this send me an email and I will change it
+				//window.open(files[file_id].get_base64());		
+				//window.open("/download/"+throwConnector.client["client_id"]+"-"+file_id);
+				
+				
+				/*Downloads come in two forms either the individual file or a zip. 
+				* /download/<usr_id>-<file_id> = File
+				* /download/<usr_id> = Zip
+				*/
+				
+				downloadURL("/download/"+throwConnector.client["client_id"]+"-"+file_id);
+			}else{	
+				//Only Works on Chrome...
+				window.webkitRequestFileSystem(window.TEMPORARY, 1024*1024, function(fs) {
+		        	fs.root.getFile(files[file_id].filename, {create: true}, function(fileEntry) {
+		            	fileEntry.createWriter(function(fileWriter) {
+		 	 					
+		                	var blob = convertDataURIToBlob(files[file_id].get_base64());
+		    
+		   	            	fileWriter.addEventListener("writeend", function() {
+		                    	
+		                    	w = 200;
+		                    	h = 200;
+		                    	var left = (screen.width/2)-(w/2);
+  								var top = (screen.height/2)-(h/2);
+  								return window.open(fileEntry.toURL(), files[file_id].filename, 'toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=yes, copyhistory=no, width='+w+', height='+h+', top='+top+', left='+left);
+		                    	
+		                	}, false);
+		    
+		                	fileWriter.write(blob);
+		            	}, function() {});
+		        	}, function() {});
+	    		}, function() {});
+	    	}
+		}
+	
+	function animateScroll(){
+	    $('.bar').animate({
+	    	width: '100%'
+		}, {
+	    	duration: 1000,
+	    	easing: 'linear',
+	    	complete:function(){ 
+	
+		    	setTimeout(function(){
+		    		$('#username_input').fadeOut();
+		    		$('#wrappermiddle').animate({height: ['300', 'swing']}, 1000);
+		    		DownloadRun = false;
+		    	}, 3000);
+		   }
+		});
+	}
+	
+	
+	function downloadURL(url){
+	    var hiddenIFrameID = 'hiddenDownloader';
+	    iframe = document.getElementById(hiddenIFrameID);
+	    
+	    if (iframe === null) {
+	        iframe = document.createElement('iframe');
+	        iframe.id = hiddenIFrameID;
+	        iframe.style.display = 'none';
+	        document.body.appendChild(iframe);
+	    }
+	    iframe.src = url;
+	}
+		
+		
+	function qrRead(a){
+		usr_id = a.split("-");
+		usr_id = usr_id[0].split("/");
+		usr_id = usr_id[usr_id.length-1]
+		
+		//alert("Get The client: "+usr_id);
+		
+		throwConnector.getClientFiles(usr_id);
+	}	
+
+
+	function initCanvas(ww,hh){
+		gCanvas = document.getElementById("qr-canvas");
+		var w = ww;
+		var h = hh;
+		gCanvas.style.width = w + "px";
+		gCanvas.style.height = h + "px";
+		gCanvas.width = w;
+		gCanvas.height = h;
+		gCtx = gCanvas.getContext("2d");
+		gCtx.clearRect(0, 0, w, h);
+		imageData = gCtx.getImageData( 0,0,320,240);
+	}
+
+	function passLine(stringPixels) { 
+		var coll = stringPixels.split("-");
+	
+		for(var i=0;i<320;i++) { 
+			var intVal = parseInt(coll[i]);
+			r = (intVal >> 16) & 0xff;
+			g = (intVal >> 8) & 0xff;
+			b = (intVal ) & 0xff;
+			imageData.data[c+0]=r;
+			imageData.data[c+1]=g;
+			imageData.data[c+2]=b;
+			imageData.data[c+3]=255;
+			c+=4;
+		} 
+
+		if(c>=320*240*4) { 
+			c=0;
+      		gCtx.putImageData(imageData, 0,0);
+		} 
+ 	} 
+
+	function captureToCanvas() {
+    	gCanvas = document.getElementById("qr-canvas").getContext('2d');
+	    gCanvas.drawImage(video, 0, 0);
+	   	qrcode.decode();
+	}
+        
+
+	function camToggle(){   
+    	if (webVideo == false){
+	    	window.URL = window.URL || window.webkitURL;
+			navigator.getUserMedia  = navigator.getUserMedia || navigator.webkitGetUserMedia ||
+		                          navigator.mozGetUserMedia || navigator.msGetUserMedia;
+		
+			video = document.querySelector('video');
+		
+			if (navigator.getUserMedia) {
+				webVideo = true;
+		  		navigator.getUserMedia({audio: true, video: true}, function(stream) {
+		    		video.src = window.URL.createObjectURL(stream);
+		    		initCanvas(640,480);
+		    		
+					qrcode.callback = qrRead;
+					setInterval(captureToCanvas, 500);
+		  		}, function(){
+		  			alert("No Camera Support");
+		  		});
+			}else{
+				alert("No Camera Support");
+				
+		 		//video.src = 'somevideo.webm'; // fallback.
+			}
+		}
+		
+		if (webVideo == true){
+			if(displayState == false){
+				displayState = true;
+				 $("#marker").fadeOut(1000, function(){
+					$("#camVideo").fadeIn(1000); 
+				 });
+			 }else{
+			 	displayState = false;
+			 	$("#camVideo").fadeOut(1000, function(){
+					$("#marker").fadeIn(1000); 
+				});
+			 }
+		 }
+
+     }
+     
+
+	</script>
+</head>
+<body>
+  
+	<canvas id="qr-canvas" width="640" height="480" style="display:none"></canvas>
+	
+	<div id="header">
+		<div style="float:left">
+			<img src="/static/img/ideo_logo.png"/>
+		</div>
+		<div style="margin-left:70px; margin-top:12px">
+			<h2> OTA File Portal</h2>
+		</div>
+		<div style="overflow:hidden; width:950px; height:1px; background:black; margin-top:25px"></div>
+	</div>
+
+	<div id="wrapper">
+		<div id="send" style="float:left; width:350px">
+			<div style="text-align: center; font-size:20px"><h1>Send Files</h1></div>
+			<div id="wrappertop"></div>
+		
+				<div id="wrappermiddle" onClick="clickChange('send')">	
+					<div id="uploadIcon" style="margin-left:20px; width:307; height:286; border-width: 2px; border-style: dashed; border-color: #212121; background:url(/static/img/upload_cloud_small.png) no-repeat center center;">
+						<div id="doneTxt" style="display:none; text-align: center; font-size:20px; padding-top:180px"><h1>Done</h1></div>
+					</div> 
+						
+					<div style="width:290; height:290; padding-left:30px">
+						<div class="marker" id="markerasas"  style="display:none; opacity:100">
+							<div class="inner"><img id="marker_imgsaasa" src="/static/img/spacer.png" style="width:290; height:290" /></div>
+							<div class="inner"><img src="/static/img/qr_ideo.png" style="width:290; height:290;"></div>
+						</div>
+					</div>
+				</div>
+				
+				<div id="manFileHolder" style="background:url(/static/img/wrapper_middle.png) repeat-y;overflow: scroll; padding-left:20px; padding-right:20px; padding-top:20px; display:none">
+					<input type="file" id="manFile" name="upfile"><br>
+				</div>
+			
+				 		
+				
+				<div id="file_holder_send" style="background:url(/static/img/wrapper_middle.png) repeat-y; height:0px; overflow: scroll; padding-left:20px; padding-right:20px;">
+					<div style="margin-left:10px; width:290px; height:400px; background-color: rgba(255, 255, 255, 0.5)">
+						<table class="table" id="files_send" style="left:-20px">
+				        	<tbody>
+			
+				            </tbody>
+						</table>
+					</div>
+				</div>
+			
+			<div id="wrapperbottom"></div>
+			
+			<div style="text-align: justify; font-size:15px; padding-left:15px; padding-top:7px; padding-right:15px">
+				Drop your file in the above area to send it to another computer or device. 
+			</div>
+		</div>
+		
+		
+		<div id="center_text" style="font-size:20px; float: left; width:120px; margin-top:180px; margin-left:10px; margin-right:20px; display: table-cell; text-align: center; vertical-align: middle;">
+			<h1>- Or -<h1>
+		</div>
+		
+		
+		<div id="receive" style="overflow: hidden; width:350px">
+		
+		<div style="text-align: center; font-size:20px"><h1>Receive Files</h1></div>
+			<div id="wrappertop"></div>
+	
+			<div id="wrappermiddle" onClick="clickChange('receive')">		
+				<div style="width:290; height:290; padding-left:30px">
+					<div class="marker" id="marker"  style="display:none; opacity:100">
+						<div class="inner"><img id="marker_img" src="/static/img/spacer.png" style="width:290; height:290" /></div>
+						<div class="inner"><img src="/static/img/qr_ideo.png" style="width:290; height:290;"></div>
+					</div>
+					<video autoplay style="width:290; height:290; display:none" id="camVideo" onClick="camToggle()"></video>		
+				</div>
+				
+			</div>
+			
+			<div style="background:url(/static/img/wrapper_middle.png) repeat-y;overflow: scroll; padding-left:20px; padding-right:20px;">
+				<div id="enableCam" style="display:none; padding-left:100px; width:120px;"><button onclick="camToggle()">Turn on camera</button></div>
+			</div>			
+			
+			
+			<div id="file_holder_receive" style="background:url(/static/img/wrapper_middle.png) repeat-y; height:0px; overflow: scroll; padding-left:20px; padding-right:20px;">
+				<div style="margin-left:10px; width:290px; height:400px; background-color: rgba(255, 255, 255, 0.5)">
+					<table class="table" id="files_receive" style="left:-20px">
+			        	<tbody>
+		
+			            </tbody>
+					</table>
+				</div>
+			</div>
+			
+			
+			<div id="wrapperbottom"></div>
+			
+			<div>
+				<div style="text-align: justify; font-size:15px; padding-left:15px; padding-top:7px; padding-right:15px">
+					To receive a file from another device, launch the IDEO File Portal site on that device and aim its camera at the above QR code.
+				</div>
+			</div>
+					
+	
+			<br>
+			
+		
+		</div>
+		
+		
+	</div>
+	
+	
+
+		
+	<iframe id="hiddenDownloader" height="1px" width="1px"/>
+	
+	
+	
+
+  
+  
+  
+  
+</body>
+</html>
